@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -62,7 +63,7 @@ func (this *Server) Handler(conn net.Conn) {
 		buf := make([]byte, 4096)
 		for {
 			n, err := conn.Read(buf)
-			if n == 0 {
+			if n == 0 { // 断线触发
 				user.Offline()
 				return
 			}
@@ -76,8 +77,27 @@ func (this *Server) Handler(conn net.Conn) {
 		}
 	}()
 
+	ticker := time.NewTicker(5 * time.Second)
+	timeOutChan := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				if 5.0 < time.Now().Sub(user.LastAliveTime).Seconds() {
+					fmt.Printf("%v, 被踢下线了\n", user.Name)
+					user.SendMsg("你被踢下线了")
+					timeOutChan <- struct{}{}
+					return
+				}
+			}
+		}
+	}()
+
 	// 阻塞保持对客户端的链接
-	select {}
+	select {
+	case <-timeOutChan:
+		conn.Close()
+	}
 }
 
 func (this *Server) SendBroadcastChan(user *User, msg string) {

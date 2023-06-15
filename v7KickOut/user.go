@@ -3,23 +3,26 @@ package main
 import (
 	"fmt"
 	"net"
+	"time"
 )
 
 type User struct {
-	Name    string
-	Addr    string
-	MsgChan chan string
-	Conn    net.Conn
-	Server  *Server
+	Name          string
+	Addr          string
+	MsgChan       chan string
+	Conn          net.Conn
+	Server        *Server
+	LastAliveTime time.Time
 }
 
 func NewUser(conn net.Conn, server *Server) *User {
 	u := &User{
-		Name:    conn.RemoteAddr().String(),
-		Addr:    conn.RemoteAddr().String(),
-		MsgChan: make(chan string),
-		Conn:    conn,
-		Server:  server,
+		Name:          conn.RemoteAddr().String(),
+		Addr:          conn.RemoteAddr().String(),
+		MsgChan:       make(chan string),
+		Conn:          conn,
+		Server:        server,
+		LastAliveTime: time.Now(),
 	}
 	go u.ListenMsgChan()
 	return u
@@ -57,10 +60,11 @@ func (this *User) DoMsg(msg string) {
 	} else {
 		this.Server.SendBroadcastChan(this, msg)
 	}
+	this.UpdateAliveTime()
 }
 
 func (this *User) SendMsg(msg string) {
-	this.Conn.Write([]byte(msg))
+	this.Conn.Write([]byte(msg + "\n"))
 }
 
 func (this *User) Who() {
@@ -81,4 +85,8 @@ func (this *User) Rename(newName string) {
 	delete(this.Server.OnlineMap, this.Name)
 	this.Server.OnlineMap[newName] = this
 	this.Name = newName
+}
+
+func (this *User) UpdateAliveTime() {
+	this.LastAliveTime = time.Now()
 }
