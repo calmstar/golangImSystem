@@ -51,6 +51,9 @@ func (this *User) Offline() {
 func (this *User) DoMsg(msg string) {
 	if msg == "who" {
 		this.Who()
+	} else if len(msg) > 7 && msg[:7] == "rename|" { // "rename|zhangsan" 修改名字
+		this.Rename(msg[7:])
+		this.SendMsg("rename success \n")
 	} else {
 		this.Server.SendBroadcastChan(this, msg)
 	}
@@ -70,4 +73,8 @@ func (this *User) Who() {
 		i++
 	}
 	this.SendMsg(msg)
+}
+
+func (this *User) Rename(newName string) {
+	this.Name = newName
 }
